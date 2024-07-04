@@ -116,6 +116,7 @@ class databaseController {
 
     initializeLogTable = async () => {
         await this.transac([
+            `DELETE TABLE IF EXISTS logs`,
             `CREATE TABLE IF NOT EXISTS logs (
                 index INTEGER PRIMARY KEY,
                 type VARCHAR(20),
