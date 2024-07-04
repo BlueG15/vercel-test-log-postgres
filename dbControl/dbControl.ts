@@ -5,18 +5,16 @@ interface customPoolClient extends pg.PoolClient {
     lastQuery : string | any[]
 }
 
-const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-});
-
 class databaseController {
     //note: property name gets lowercased when fetched
+    pool : pg.Pool | undefined = undefined
 
     //1 sigular query
     query = async (text : string, params? : any[]) => {
+        if (!this.pool) return undefined
         try{
             const start = Date.now()
-            const res = await pool.query(text, params)
+            const res = await this.pool.query(text, params)
             const duration = Date.now() - start
             console.log('executed query', { text, duration }, JSON.stringify(res))
             return res.rows
@@ -29,9 +27,10 @@ class databaseController {
     //example full response is 
     //"{\"command\":\"SELECT\",\"rowCount\":0,\"oid\":null,\"rows\":[],\"fields\":[{\"name\":\"roomid\",\"tableID\":40975,\"columnID\":1,\"dataTypeID\":1043,\"dataTypeSize\":-1,\"dataTypeModifier\":11,\"format\":\"text\"}],\"_parsers\":[null],\"_types\":{\"_types\":{\"arrayParser\":{},\"builtins\":{\"BOOL\":16,\"BYTEA\":17,\"CHAR\":18,\"INT8\":20,\"INT2\":21,\"INT4\":23,\"REGPROC\":24,\"TEXT\":25,\"OID\":26,\"TID\":27,\"XID\":28,\"CID\":29,\"JSON\":114,\"XML\":142,\"PG_NODE_TREE\":194,\"SMGR\":210,\"PATH\":602,\"POLYGON\":604,\"CIDR\":650,\"FLOAT4\":700,\"FLOAT8\":701,\"ABSTIME\":702,\"RELTIME\":703,\"TINTERVAL\":704,\"CIRCLE\":718,\"MACADDR8\":774,\"MONEY\":790,\"MACADDR\":829,\"INET\":869,\"ACLITEM\":1033,\"BPCHAR\":1042,\"VARCHAR\":1043,\"DATE\":1082,\"TIME\":1083,\"TIMESTAMP\":1114,\"TIMESTAMPTZ\":1184,\"INTERVAL\":1186,\"TIMETZ\":1266,\"BIT\":1560,\"VARBIT\":1562,\"NUMERIC\":1700,\"REFCURSOR\":1790,\"REGPROCEDURE\":2202,\"REGOPER\":2203,\"REGOPERATOR\":2204,\"REGCLASS\":2205,\"REGTYPE\":2206,\"UUID\":2950,\"TXID_SNAPSHOT\":2970,\"PG_LSN\":3220,\"PG_NDISTINCT\":3361,\"PG_DEPENDENCIES\":3402,\"TSVECTOR\":3614,\"TSQUERY\":3615,\"GTSVECTOR\":3642,\"REGCONFIG\":3734,\"REGDICTIONARY\":3769,\"JSONB\":3802,\"REGNAMESPACE\":4089,\"REGROLE\":4096}},\"text\":{},\"binary\":{}},\"RowCtor\":null,\"rowAsArray\":false,\"_prebuiltEmptyResultObject\":{\"roomid\":null}}"
     fullQquery = async (text : string, params? : any[]) => {
+        if (!this.pool) return undefined
         try{
             const start = Date.now()
-            const res = await pool.query(text, params)
+            const res = await this.pool.query(text, params)
             const duration = Date.now() - start
             console.log('executed query', { text, duration }, JSON.stringify(res))
             return res
@@ -44,8 +43,9 @@ class databaseController {
     //for multiple sqls in a row, see manual transactions: https://node-postgres.com/features/transactions
     //transactions ussually dotn return shit, so dont use this for SELECT
     getClient = async () => {
+        if (!this.pool) return undefined
         const start = Date.now()
-        const client = (await pool.connect()) as customPoolClient
+        const client = (await this.pool.connect()) as customPoolClient
         client.lastQuery = "DEFAULT_QUERY"
         const query = client.query
         const release = client.release
@@ -75,6 +75,7 @@ class databaseController {
     //a customized version for just querry text, no interaction beteen querries, no params
     transac = async (queryArr : string[]) => {
         const client = await this.getClient()
+        if(!client) return undefined
         let text = "default_query"
         try{
             await client.query('BEGIN')
@@ -137,6 +138,7 @@ class databaseController {
         try{
             var logTime = new Date().toISOString()
             var a = await this.query(`SELECT index FROM logs`)
+            if(!a) throw new Error("cannot querry")
             await this.query(`
                 INSERT INTO logs (index, type, roomID, userID, userName, logTime, message) VALUES (${a.length}, '${type}', '${roomID}', '${userID}', '${userName}', '${logTime}', '${messege}');
             `)
@@ -189,6 +191,12 @@ class databaseController {
         })
         await this.transac(q)
         return
+    }
+
+    constructor(){
+        this.pool = new pg.Pool({
+            connectionString: process.env.POSTGRES_URL,
+        });
     }
 }
 
