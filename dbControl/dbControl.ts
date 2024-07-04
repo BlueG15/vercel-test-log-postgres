@@ -139,10 +139,9 @@ class databaseController {
             var logTime = new Date().toISOString()
             var a = await this.query(`SELECT index FROM logs`)
             if(!a) throw new Error("cannot querry")
-            await this.query(`
-                INSERT INTO logs (index, type, roomID, userID, userName, logTime, message) VALUES (${a.length}, '${type}', '${roomID}', '${userID}', '${userName}', '${logTime}', '${messege}');
-            `)
-            return new response(false, 'writeLog', userName, 'successfully write log', {"playerID": userID, "logPos": a.length})
+            let q = `INSERT INTO logs (index, type, roomID, userID, userName, logTime, message) VALUES (${a.length}, '${type}', '${roomID}', '${userID}', '${userName}', '${logTime}', '${messege}');`
+            await this.query(q)
+            return new response(false, 'writeLog', userName, 'successfully write log', {"playerID": userID, "logPos": a.length, "fullQuery": q})
         }catch(err : any){
             return new response(true, "writeLog", userName, 'fail to write log for some reason', {"errStr": JSON.stringify(err)})
         }
